@@ -273,6 +273,41 @@ let stags = [
 let recs = {};
 let uid = 20, posteUid = 10, editSId = null, editRKey = null;
 
+/* ─── PERSISTANCE LOCALSTORAGE ─── */
+const STORAGE_KEY = 'matera-legal-v1';
+
+function saveToStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      stags: stags.map(s=>({...s,
+        deb:s.deb?s.deb.toISOString():null,
+        fin:s.fin?s.fin.toISOString():null,
+        fcm:s.fcm?s.fcm.toISOString():null
+      })),
+      recs, postes, config, uid, posteUid
+    }));
+  }catch(e){}
+}
+
+function loadFromStorage(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(d.stags) stags=d.stags.map(s=>({...s,
+      deb:s.deb?new Date(s.deb):null,
+      fin:s.fin?new Date(s.fin):null,
+      fcm:s.fcm?new Date(s.fcm):null
+    }));
+    if(d.recs) recs=d.recs;
+    if(d.postes) postes=d.postes;
+    if(d.config) config=d.config;
+    if(d.uid) uid=d.uid;
+    if(d.posteUid) posteUid=d.posteUid;
+    return true;
+  }catch(e){return false;}
+}
+
 /* ─── UTILS ─── */
 function addD(dt,n){const r=new Date(dt);r.setDate(r.getDate()+n);return r;}
 function addM(dt,n){
@@ -452,11 +487,11 @@ function saveS(){
   } else {
     stags.push({id:uid++,pid,nom,deb:deb?new Date(deb):null,fin:fin?new Date(fin):null,nc,arch:false,fcm:fcm?new Date(fcm):null});
   }
-  cm('modal-s');renderAll();toast(editSId?'Modifié.':'Ajouté.');
+  cm('modal-s');renderAll();saveToStorage();toast(editSId?'Modifié.':'Ajouté.');
 }
 function delS(id){
   if(!confirm('Supprimer ce stagiaire ?'))return;
-  stags=stags.filter(x=>x.id!==id);renderAll();toast('Supprimé.');
+  stags=stags.filter(x=>x.id!==id);renderAll();saveToStorage();toast('Supprimé.');
 }
 function openRec(key,label,ctx){
   editRKey=key;
@@ -469,9 +504,9 @@ function openRec(key,label,ctx){
 }
 function saveR(){
   recs[editRKey]={status:document.getElementById('r-st').value,nom:document.getElementById('r-nom').value.trim(),note:document.getElementById('r-note').value.trim()};
-  cm('modal-r');renderAll();toast('Recrutement mis à jour.');
+  cm('modal-r');renderAll();saveToStorage();toast('Recrutement mis à jour.');
 }
-function clearR(key){delete recs[key];renderAll();toast('Retiré.');}
+function clearR(key){delete recs[key];renderAll();saveToStorage();toast('Retiré.');}
 function openAddPoste(){
   document.getElementById('fp-nom').value='';
   document.getElementById('fp-type').value='stage';
@@ -482,13 +517,13 @@ function savePoste(){
   const nom=document.getElementById('fp-nom').value.trim();
   if(!nom){alert('Nom requis.');return;}
   postes.push({id:'p'+posteUid++,label:nom,quota:parseInt(document.getElementById('fp-quota').value)||1,type:document.getElementById('fp-type').value});
-  cm('modal-p');renderAll();toast('Poste créé.');
+  cm('modal-p');renderAll();saveToStorage();toast('Poste créé.');
 }
 function delPoste(id){
   if(!confirm('Supprimer ce poste ?'))return;
-  postes=postes.filter(p=>p.id!==id);stags=stags.filter(s=>s.pid!==id);renderAll();toast('Supprimé.');
+  postes=postes.filter(p=>p.id!==id);stags=stags.filter(s=>s.pid!==id);renderAll();saveToStorage();toast('Supprimé.');
 }
-function changeQuota(id,delta){const p=postes.find(x=>x.id===id);if(p)p.quota=Math.max(0,p.quota+delta);renderAll();}
+function changeQuota(id,delta){const p=postes.find(x=>x.id===id);if(p)p.quota=Math.max(0,p.quota+delta);renderAll();saveToStorage();}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200);}
 
 /* ─── NAV ─── */
@@ -837,7 +872,7 @@ function renderParams(){
   <div class="cfg" style="margin-bottom:20px">
     <div class="cfg-hd"><span class="cfg-name">Délai d'anticipation</span></div>
     <div class="cfg-quota-row"><span class="cfg-lbl">Jours avant la prise de poste</span>
-      <div class="stepper"><button onclick="config.delai=Math.max(30,config.delai-30);renderAll()">−</button><span>${config.delai}</span><button onclick="config.delai+=30;renderAll()">+</button></div>
+      <div class="stepper"><button onclick="config.delai=Math.max(30,config.delai-30);renderAll();saveToStorage()">−</button><span>${config.delai}</span><button onclick="config.delai+=30;renderAll();saveToStorage()">+</button></div>
     </div>
     <div class="cfg-info">Recrutement à lancer ${Math.round(config.delai/30)} mois avant la prise de poste.</div>
   </div>
@@ -869,6 +904,7 @@ function renderAll(){
   const on=document.querySelector('.page.on')?.id?.replace('p-','');
   renderPage(on||'besoins');
 }
+loadFromStorage();
 renderAll();
 </script>
 </body>
